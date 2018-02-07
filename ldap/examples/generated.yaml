@@ -1,0 +1,120 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: ldap-app
+  name: ldap-app
+  namespace: dev-alex
+spec:
+  template:
+    metadata:
+      labels:
+        app: ldap-app
+    spec:
+      containers:
+      - env:
+        - name: LDAP_USER
+          value: ldap
+        - name: LDAPUSER
+          value: ldap
+        - name: LDAP_DB
+          value: ""
+        - name: LDAP_INITDB_ARGS
+          value: ""
+        - name: LDAPDATA
+          value: /var/lib/ldap/data/ldapdata
+        - name: LDAP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: ldap-password
+              name: ldap-app
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: 2911995/pepbeats
+        image: jittakal/ldap-server:1.0.2
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec pg_isready --host $POD_IP
+          failureThreshold: 6
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+        name: ldap-app
+        ports:
+        - containerPort: 389
+          name: ldap
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec ldap_isready --host $POD_IP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /var/lib/ldap/data/ldapdata
+          name: data
+          subPath: ldap-db
+      nodeSelector: {}
+      tolerations: []
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: ldap-app
+  name: ldap-app
+  namespace: dev-alex
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          ldap-app-client: "true"
+    ports:
+    - port: 389
+  - ports:
+    - port: 9187
+  podSelector:
+    matchLabels:
+      app: ldap-app
+---
+apiVersion: v1
+data:
+  ldap-password: c2ltcGxlUGFzc3dvcmQ=
+kind: Secret
+metadata:
+  labels:
+    app: ldap-app
+  name: ldap-app
+  namespace: dev-alex
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ldap-app
+  name: ldap-app
+  namespace: dev-alex
+spec:
+  externalIPs: []
+  ports:
+  - name: ldap
+    port: 389
+    targetPort: ldap
+  selector:
+    app: ldap-app
+  type: ClusterIP
