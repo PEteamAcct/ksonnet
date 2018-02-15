@@ -9,7 +9,7 @@
 // @param password string Password for the root/admin user.
 
 local k = import 'k.libsonnet';
-local psg = import 'incubator/ldap/ldap.libsonnet';
+local psg = import 'ksonnet/ldap/ldap.libsonnet';
 
 local appName = import 'param://name';
 local namespace = import 'param://namespace';
